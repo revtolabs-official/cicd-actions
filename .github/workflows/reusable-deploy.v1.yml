@@ -1,5 +1,4 @@
 # Reusable Workflow (cicd-actions/.github/workflows/reusable-deploy.yml)
-#
 name: Reusable EC2 Deploy Workflow
 
 on:

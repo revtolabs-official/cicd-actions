@@ -43,12 +43,12 @@ jobs:
 
     - name: Set up SSH
       run: |
-        echo -e '${{ secrets.EC2_SSH_KEY }}' > RehabXf.pem
-        chmod 600 RehabXf.pem
+        echo -e '${{ secrets.EC2_SSH_KEY }}' > Roamwe.pem
+        chmod 600 Romewe.pem
 
     - name: Install Docker and Git
       run: |
-        ssh -i RehabXf.pem -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+        ssh -i Romewe.pem -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
           sudo apt-get update
           if ! command -v docker &> /dev/null; then
             sudo apt-get install -y docker.io
@@ -60,7 +60,7 @@ jobs:
 
     - name: Clone Git repository on EC2
       run: |
-        ssh -i RehabXf.pem -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+        ssh -i Romewe.pem -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
           cd ~
           if [ -d "apps/${{ inputs.app_name }}" ] && [ ! -d "apps/${{ inputs.app_name }}/.git" ]; then
             rm -rf apps/${{ inputs.app_name }}
@@ -79,7 +79,7 @@ jobs:
 
     - name: Stop and Remove Existing Docker Container
       run: |
-        ssh -i RehabXf.pem -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+        ssh -i Romewe.pem -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
           if [ $(docker ps -a -q --filter "name=${{ inputs.app_name }}") ]; then
             echo "Stopping and removing existing Docker container: ${{ inputs.app_name }}"
             docker stop ${{ inputs.app_name }}
@@ -91,7 +91,7 @@ jobs:
 
     - name: Remove Existing Docker Image (if exists)
       run: |
-        ssh -i RehabXf.pem -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+        ssh -i Romewe.pem -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
           if docker images -q ${{ inputs.app_name }} > /dev/null 2>&1; then
             echo "Removing existing Docker image: ${{ inputs.app_name }}"
             docker rmi -f ${{ inputs.app_name }}
@@ -102,14 +102,14 @@ jobs:
 
     - name: Build New Docker Image
       run: |
-        ssh -i RehabXf.pem -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+        ssh -i Romewe.pem -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
           cd ~/apps/${{ inputs.app_name }}
           docker build -t ${{ inputs.app_name }} .
         EOF
 
     - name: Run Docker Container
       run: |
-        ssh -i RehabXf.pem -t -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+        ssh -i Romewe.pem -t -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
           cd ~/apps/${{ inputs.app_name }}
           docker run -d -p ${{ inputs.app_port }}:${{ inputs.app_port }} --name ${{ inputs.app_name }} ${{ inputs.app_name }}
         EOF
@@ -123,12 +123,12 @@ jobs:
     steps:
     - name: Set up SSH
       run: |
-        echo -e '${{ secrets.EC2_SSH_KEY }}' > RehabXf.pem
-        chmod 600 RehabXf.pem
+        echo -e '${{ secrets.EC2_SSH_KEY }}' > Romewe.pem
+        chmod 600 Romewe.pem
 
     - name: Capture Docker Logs
       run: |
-        ssh -i RehabXf.pem -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+        ssh -i Romewe.pem -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
           if docker ps -a --filter "name=${{ inputs.app_name }}" --format '{{.Names}}' | grep -w ${{ inputs.app_name }}; then
             echo "Fetching Docker logs for ${{ inputs.app_name }}..."
             docker logs ${{ inputs.app_name }}

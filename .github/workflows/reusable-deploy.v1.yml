@@ -1,0 +1,94 @@
+# Reusable Workflow (cicd-actions/.github/workflows/reusable-deploy.yml)
+name: Reusable EC2 Deploy Workflow
+
+on:
+  # This workflow can be triggered by another workflow or manually
+  workflow_call:
+    inputs:
+      app_name:
+        required: true
+        type: string
+      app_port:
+        required: true
+        type: string
+    secrets:
+      EC2_HOST:
+        required: true
+      EC2_USER:
+        required: true
+      EC2_SSH_KEY:
+        required: true
+      GIT_TOKEN:
+        required: true
+  workflow_dispatch: {}
+
+jobs:
+  deploy:
+    name: Deploy ${{ inputs.app_name }} to EC2
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      # Check out the code from the repository to the runner
+      uses: actions/checkout@v3
+      with:
+        fetch-depth: 0  # Fetch all history to ensure we have full context for deployment
+
+    - name: Set up SSH
+      # Create the SSH key file from the provided secret and set the correct permissions
+      run: |
+        echo -e '${{ secrets.EC2_SSH_KEY }}' > RehabXf.pem  # Write the SSH key to a file
+        chmod 600 RehabXf.pem  # Set permissions to ensure the key is secure
+
+    - name: Install Docker and Git
+      # Connect to the EC2 instance and install Docker and Git
+      run: |
+        ssh -i RehabXf.pem -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+          # Update package list to ensure we have the latest information about available packages
+          sudo apt-get update
+
+          # Install Docker for running containers
+          sudo apt-get install -y docker.io
+
+          # Install Git to allow pulling the latest changes from the repository
+          sudo apt-get install -y git
+        EOF
+
+    - name: Clone Git repository on EC2
+      # Clone the git repository on the EC2 instance using the provided Git token
+      run: |
+        ssh -i RehabXf.pem -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+          # Navigate to the home directory
+          cd ~
+
+          # Remove existing directory if it is not a valid git repository
+          if [ -d "apps/${{ inputs.app_name }}" ] && [ ! -d "apps/${{ inputs.app_name }}/.git" ]; then
+            echo "Invalid repository directory found, removing..."
+            rm -rf apps/${{ inputs.app_name }}
+          fi
+
+          # Clone the repository if it does not exist, otherwise pull the latest changes
+          if [ ! -d "apps/${{ inputs.app_name }}" ]; then
+            echo "Cloning repository..."
+            git clone https://${{ secrets.GIT_TOKEN }}@github.com/rehab-mart/${{ inputs.app_name }}.git apps/${{ inputs.app_name }}
+          else
+            echo "Repository already exists, pulling latest changes..."
+            cd apps/${{ inputs.app_name }}
+            git fetch origin
+            git reset --hard origin/main
+          fi
+        EOF
+
+    - name: Deploy to EC2
+      # Connect to the EC2 instance and deploy the application
+      run: |
+        ssh -i RehabXf.pem -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+          # Navigate to the application directory
+          cd ~/apps/${{ inputs.app_name }}
+
+          # Stop any running containers for the app
+          docker-compose down || true  # Ignore errors if no containers are running
+
+          # Build and start containers in detached mode
+          docker-compose up -d --build
+        EOF

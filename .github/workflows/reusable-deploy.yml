@@ -1,0 +1,138 @@
+name: Reusable EC2 Deploy Workflow
+
+on:
+  workflow_call:
+    inputs:
+      app_name:
+        required: true
+        type: string
+      app_port:
+        required: true
+        type: string
+      branch:
+        required: true
+        type: string
+      # environment:
+      #   required: true
+      #   type: string
+    secrets:
+      EC2_HOST:
+        required: true
+      EC2_USER:
+        required: true
+      EC2_SSH_KEY:
+        required: true
+      GIT_TOKEN:
+        required: true
+      #GOOGLE_API_KEY:
+       # required: true
+      #OPENAI_API_KEY:
+       # required: true
+  workflow_dispatch: {}
+
+jobs:
+  deploy:
+    name: Deploy ${{ inputs.app_name }} to EC2
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+
+    - name: Set up SSH
+      run: |
+        echo -e '${{ secrets.EC2_SSH_KEY }}' > RehabXf.pem
+        chmod 600 RehabXf.pem
+
+    - name: Install Docker and Git
+      run: |
+        ssh -i RehabXf.pem -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+          sudo apt-get update
+          if ! command -v docker &> /dev/null; then
+            sudo apt-get install -y docker.io
+          fi
+          if ! command -v git &> /dev/null; then
+            sudo apt-get install -y git
+          fi
+        EOF
+
+    - name: Clone Git repository on EC2
+      run: |
+        ssh -i RehabXf.pem -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+          cd ~
+          if [ -d "apps/${{ inputs.app_name }}" ] && [ ! -d "apps/${{ inputs.app_name }}/.git" ]; then
+            rm -rf apps/${{ inputs.app_name }}
+          fi
+          if [ ! -d "apps/${{ inputs.app_name }}" ]; then
+            git clone https://rehab-mart:${{ secrets.GIT_TOKEN }}@github.com/rehab-mart/${{ inputs.app_name }}.git apps/${{ inputs.app_name }}
+            cd apps/${{ inputs.app_name }}
+            git checkout ${{ inputs.branch }}
+          else
+            cd apps/${{ inputs.app_name }}
+            git fetch origin
+            git checkout ${{ inputs.branch }}
+            git reset --hard origin/${{ inputs.branch }}
+          fi
+        EOF
+
+    - name: Stop and Remove Existing Docker Container
+      run: |
+        ssh -i RehabXf.pem -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+          if [ $(docker ps -a -q --filter "name=${{ inputs.app_name }}") ]; then
+            echo "Stopping and removing existing Docker container: ${{ inputs.app_name }}"
+            docker stop ${{ inputs.app_name }}
+            docker rm -f ${{ inputs.app_name }}
+          else
+            echo "No existing Docker container found for: ${{ inputs.app_name }}"
+          fi
+        EOF
+
+    - name: Remove Existing Docker Image (if exists)
+      run: |
+        ssh -i RehabXf.pem -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+          if docker images -q ${{ inputs.app_name }} > /dev/null 2>&1; then
+            echo "Removing existing Docker image: ${{ inputs.app_name }}"
+            docker rmi -f ${{ inputs.app_name }}
+          else
+            echo "No existing Docker image found for: ${{ inputs.app_name }}"
+          fi
+        EOF
+
+    - name: Build New Docker Image
+      run: |
+        ssh -i RehabXf.pem -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+          cd ~/apps/${{ inputs.app_name }}
+          docker build -t ${{ inputs.app_name }} .
+        EOF
+
+    - name: Run Docker Container
+      run: |
+        ssh -i RehabXf.pem -t -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+          cd ~/apps/${{ inputs.app_name }}
+          docker run -d -p ${{ inputs.app_port }}:${{ inputs.app_port }} --name ${{ inputs.app_name }} ${{ inputs.app_name }}
+        EOF
+
+  capture_logs_on_failure:
+    name: Capture Docker Logs on Failure
+    needs: deploy
+    runs-on: ubuntu-latest
+    if: failure()
+
+    steps:
+    - name: Set up SSH
+      run: |
+        echo -e '${{ secrets.EC2_SSH_KEY }}' > RehabXf.pem
+        chmod 600 RehabXf.pem
+
+    - name: Capture Docker Logs
+      run: |
+        ssh -i RehabXf.pem -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+          if docker ps -a --filter "name=${{ inputs.app_name }}" --format '{{.Names}}' | grep -w ${{ inputs.app_name }}; then
+            echo "Fetching Docker logs for ${{ inputs.app_name }}..."
+            docker logs ${{ inputs.app_name }}
+          else
+            echo "No container found for ${{ inputs.app_name }} to fetch logs."
+          fi
+        EOF

@@ -1,0 +1,77 @@
+name: Reusable EC2 Deploy Workflow
+
+on:
+  workflow_call:
+    inputs:
+      app_name:
+        required: true
+        type: string
+      app_port:
+        required: true
+        type: string
+      environment:
+        required: true
+        type: string
+    secrets:
+      GIT_TOKEN:
+        required: true
+      GOOGLE_API_KEY:
+        required: true
+      OPENAI_API_KEY:
+        required: true
+
+jobs:
+  deploy:
+    name: Deploy ${{ inputs.app_name }}
+    runs-on: ${{ 
+      inputs.environment == 'dev' && 'self-hosted,dev' || 
+      inputs.environment == 'beta' && 'self-hosted,beta'}}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Clone Git repository
+        run: |
+          if [ -d "~/apps/${{ inputs.app_name }}" ]; then
+            cd ~/apps/${{ inputs.app_name }}
+            git pull
+          else
+            git clone https://rehab-mart:${{ secrets.GIT_TOKEN }}@github.com/rehab-mart/${{ inputs.app_name }}.git ~/apps/${{ inputs.app_name }}
+          fi
+
+      - name: Build Docker Image
+        run: |
+          cd ~/apps/${{ inputs.app_name }}
+          docker build -t ${{ inputs.app_name }} .
+
+      - name: Stop and Remove Existing Docker Container
+        run: |
+          if [ $(docker ps -a -q --filter "name=${{ inputs.app_name }}") ]; then
+            docker stop ${{ inputs.app_name }}
+            docker rm -f ${{ inputs.app_name }}
+            docker rmi ${{ inputs.app_name }}
+          fi
+
+      - name: Run Docker Container
+        run: |
+          cd ~/apps/${{ inputs.app_name }}
+          docker run -d -p ${{ inputs.app_port }}:${{ inputs.app_port }} --name ${{ inputs.app_name }} ${{ inputs.app_name }}
+
+  capture_logs_on_failure:
+    name: Capture Docker Logs on Failure
+    needs: deploy
+    runs-on: ubuntu-latest
+    if: failure()
+
+    steps:
+      - name: Capture Docker Logs
+        run: |
+          if docker ps -a --filter "name=${{ inputs.app_name }}" --format '{{.Names}}' | grep -w ${{ inputs.app_name }}; then
+            echo "Fetching Docker logs for ${{ inputs.app_name }}..."
+            docker logs ${{ inputs.app_name }}
+          else
+            echo "No container found for ${{ inputs.app_name }} to fetch logs."
+          fi

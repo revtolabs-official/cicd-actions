@@ -37,8 +37,8 @@ jobs:
     - name: Set up SSH
       # Create the SSH key file from the provided secret and set the correct permissions
       run: |
-        echo -e '${{ secrets.EC2_SSH_KEY }}' > RehabXf.pem  # Write the SSH key to a file
-        chmod 600 RehabXf.pem  # Set permissions to ensure the key is secure
+        echo -e '${{ secrets.EC2_SSH_KEY }}' > Romewe.pem  # Write the SSH key to a file
+        chmod 600 Romewe.pem  # Set permissions to ensure the key is secure
 
     - name: Install Docker and Git
       # Connect to the EC2 instance and install Docker and Git
@@ -57,7 +57,7 @@ jobs:
     - name: Clone Git repository on EC2
       # Clone the git repository on the EC2 instance using the provided Git token
       run: |
-        ssh -i RehabXf.pem -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+        ssh -i Romewe.pem -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
           # Navigate to the home directory
           cd ~
 
@@ -82,7 +82,7 @@ jobs:
     - name: Deploy to EC2
       # Connect to the EC2 instance and deploy the application
       run: |
-        ssh -i RehabXf.pem -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+        ssh -i Roamwe.pem -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
           # Navigate to the application directory
           cd ~/apps/${{ inputs.app_name }}
 

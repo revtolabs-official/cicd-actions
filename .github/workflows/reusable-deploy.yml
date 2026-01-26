@@ -1,5 +1,8 @@
 name: Reusable EC2 Deploy Workflow
 
+permissions:
+  contents: read
+
 on:
   workflow_call:
     inputs:
@@ -22,8 +25,8 @@ on:
         required: true
       EC2_SSH_KEY:
         required: true
-      GIT_TOKEN:
-        required: true
+     # GIT_TOKEN:
+      #  required: true
       #GOOGLE_API_KEY:
        # required: true
       #OPENAI_API_KEY:

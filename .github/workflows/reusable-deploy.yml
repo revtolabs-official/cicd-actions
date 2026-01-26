@@ -69,7 +69,7 @@ jobs:
             rm -rf apps/${{ inputs.app_name }}
           fi
           if [ ! -d "apps/${{ inputs.app_name }}" ]; then
-            git clone https://rehab-mart:${{ secrets.GIT_TOKEN }}@github.com/rehab-mart/${{ inputs.app_name }}.git apps/${{ inputs.app_name }}
+            git clone https://revtolabs-official:${{ secrets.GIT_TOKEN }}@github.com/revtolabs-official/${{ inputs.app_name }}.git apps/${{ inputs.app_name }}
             cd apps/${{ inputs.app_name }}
             git checkout ${{ inputs.branch }}
           else

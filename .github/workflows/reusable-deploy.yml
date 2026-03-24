@@ -80,17 +80,29 @@ jobs:
           fi
         EOF
 
+    # - name: Stop and Remove Existing Docker Container
+    #   run: |
+    #     ssh -i Roamwe.pem -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+    #       if [ $(docker ps -a -q --filter "name=${{ inputs.app_name }}") ]; then
+    #         echo "Stopping and removing existing Docker container: ${{ inputs.app_name }}"
+    #         docker stop ${{ inputs.app_name }}
+    #         docker rm -f ${{ inputs.app_name }}
+    #       else
+    #         echo "No existing Docker container found for: ${{ inputs.app_name }}"
+    #       fi
     - name: Stop and Remove Existing Docker Container
       run: |
-        ssh -i Roamwe.pem -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
-          if [ $(docker ps -a -q --filter "name=${{ inputs.app_name }}") ]; then
-            echo "Stopping and removing existing Docker container: ${{ inputs.app_name }}"
-            docker stop ${{ inputs.app_name }}
-            docker rm -f ${{ inputs.app_name }}
-          else
-            echo "No existing Docker container found for: ${{ inputs.app_name }}"
-          fi
-        EOF
+         ssh -i Roamwe.pem -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+         CONTAINER_NAME="${{ inputs.app_name }}"
+
+            if docker ps -a --format '{{.Names}}' | grep -w "$CONTAINER_NAME"; then
+              echo "Stopping and removing existing Docker container: $CONTAINER_NAME"
+              docker stop "$CONTAINER_NAME" || true
+              docker rm -f "$CONTAINER_NAME" || true
+            else
+              echo "No existing Docker container found for: $CONTAINER_NAME"
+             fi
+         EOF
 
     - name: Remove Existing Docker Image (if exists)
       run: |

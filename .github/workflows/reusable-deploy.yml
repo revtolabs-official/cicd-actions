@@ -15,9 +15,6 @@ on:
       branch:
         required: true
         type: string
-      # environment:
-      #   required: true
-      #   type: string
     secrets:
       EC2_HOST:
         required: true
@@ -27,10 +24,6 @@ on:
         required: true
       GIT_TOKEN:
         required: true
-      #GOOGLE_API_KEY:
-       # required: true
-      #OPENAI_API_KEY:
-       # required: true
   workflow_dispatch: {}
 
 jobs:

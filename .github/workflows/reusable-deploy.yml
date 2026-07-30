@@ -115,12 +115,30 @@ jobs:
           docker build -t ${{ inputs.app_name }} .
         EOF
 
+    #- name: Run Docker Container
+    #  run: |
+     #   ssh -i Roamwe.pem -t -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+      #    cd ~/apps/${{ inputs.app_name }}
+       #   docker run -d --network backend-network -p ${{ inputs.app_port }}:${{ inputs.app_port }} --name ${{ inputs.app_name }} ${{ inputs.app_name }}
+        #EOF
     - name: Run Docker Container
       run: |
-        ssh -i Roamwe.pem -t -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
-          cd ~/apps/${{ inputs.app_name }}
-          docker run -d --network backend-network -p ${{ inputs.app_port }}:${{ inputs.app_port }} --name ${{ inputs.app_name }} ${{ inputs.app_name }}
-        EOF
+       ssh -i Roamwe.pem -t -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+       cd ~/apps/${{ inputs.app_name }}
+
+       if [ "${{ inputs.public_service }}" = "true" ]; then
+        docker run -d \
+          --network backend-network \
+          -p 127.0.0.1:${{ inputs.app_port }}:${{ inputs.app_port }} \
+          --name ${{ inputs.app_name }} \
+          ${{ inputs.app_name }}
+       else
+        docker run -d \
+          --network backend-network \
+          --name ${{ inputs.app_name }} \
+          ${{ inputs.app_name }}
+       fi
+       EOF
 
   capture_logs_on_failure:
     name: Capture Docker Logs on Failure

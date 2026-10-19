@@ -116,7 +116,7 @@ jobs:
       run: |
         ssh -i Roamwe.pem -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
           cd ~/apps/${{ inputs.app_name }}
-          docker build -t ${{ inputs.app_name }} .
+          docker build --no-cache --pull -t ${{ inputs.app_name }} .
         EOF
 
     #- name: Run Docker Container

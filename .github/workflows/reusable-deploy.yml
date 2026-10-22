@@ -131,22 +131,28 @@ jobs:
         #EOF
     - name: Run Docker Container
       run: |
-        ssh -i Roamwe.pem -t -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
-        cd ~/apps/${{ inputs.app_name }}
+          ssh -i Roamwe.pem \
+            -o StrictHostKeyChecking=no \
+            "${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}" << 'EOF'
+          set -e
+          cd "$HOME/apps/${{ inputs.app_name }}"
 
-        if [ "${{ inputs.public_service }}" = "true" ]; then
-        docker run -d \
-          --network backend-network \
-          -p 127.0.0.1:${{ inputs.app_port }}:${{ inputs.app_port }} \
-          --name ${{ inputs.app_name }} \
-          ${{ inputs.app_name }}
-        else
-        docker run -d \
-          --network backend-network \
-          --name ${{ inputs.app_name }} \
-          ${{ inputs.app_name }}
-         fi
-         EOF
+          APP_NAME="${{ inputs.app_name }}"
+          APP_PORT="${{ inputs.app_port }}"
+
+          if [ "${{ inputs.public_service }}" = "true" ]; then
+            docker run -d \
+              --network backend-network \
+              -p "127.0.0.1:${APP_PORT}:${APP_PORT}" \
+              --name "$APP_NAME" \
+              "$APP_NAME"
+          else
+            docker run -d \
+              --network backend-network \
+              --name "$APP_NAME" \
+              "$APP_NAME"
+          fi
+          EOF
       
   capture_logs_on_failure:
     name: Capture Docker Logs on Failure
